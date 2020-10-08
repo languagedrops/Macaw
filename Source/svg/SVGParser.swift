@@ -191,12 +191,13 @@ open class SVGParser {
         }
     }
 
-    fileprivate func parseSvg(_ children: [XMLIndexer]) throws {
+    fileprivate func parseSvg(_ children: [XMLIndexer], groupStyle: [String: String] = [:]) throws {
         try children.forEach { child in
             if let element = child.element {
+                let style = getStyleAttributes(groupStyle, element: element)
                 if element.name == "svg" {
-                    try parseSvg(child.children)
-                } else if let node = try parseNode(child) {
+                    try parseSvg(child.children, groupStyle: style)
+                } else if let node = try parseNode(child, groupStyle: style) {
                     self.nodes.append(node)
                 }
             }
@@ -414,8 +415,12 @@ open class SVGParser {
         case "use":
             return try parseUse(node, groupStyle: style, place: position)
         case "title", "desc", "mask", "clip", "filter",
-             "linearGradient", "radialGradient", SVGKeys.fill:
+             "linearGradient", "radialGradient", SVGKeys.fill, "foreignObject":
             break
+        case "switch":
+            let result = try node.children.map() { child in try parseNode(child, groupStyle: style) }
+            let filteredResult = result.filter() { node in node != .none }
+            return filteredResult[0]
         default:
             print("SVG parsing error. Shape \(element.name) not supported")
             return .none
